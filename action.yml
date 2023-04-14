@@ -1,0 +1,46 @@
+name: textlint-reviewdog
+author: Okabe-Junya
+description: "textlint with reviewdog on GitHub Actions"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+        cache: "npm"
+
+    - name: Cache node_modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          node_modules
+        key: ${{ runner.os }}-node_modules-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node_modules-  # restore cache if key is missing
+
+    - name: Install dependencies
+      shell: bash
+      run: "npm install --save-dev textlint textlint-rule-preset-japanese @textlint/textlint-plugin-markdown"
+
+    - name: Setup Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: 3.9
+
+    - name: Setup reviewdog
+      uses: reviewdog/action-setup@v1
+      with:
+        reviewdog_version: latest
+
+    - name: Run reviewdog
+      shell: bash
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: 'npx textlint "**/*.md" --format json | python convert.py | reviewdog -f=rdjson  -reporter=github-pr-review'
